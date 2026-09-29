@@ -13,8 +13,4 @@
   <img src="assets/status.svg" width="49%" alt="GitHub stats and language distribution">
 </p>
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/jusiann/jusiann/output/github-snake.svg" width="100%" alt="contribution snake">
-</p>
-
-<p align="center"><sub>Panels are rendered by <a href="scripts/build.py"><code>scripts/build.py</code></a> and refreshed daily · font: VT323 (OFL)</sub></p>
+<p align="center"><sub>Panels are rendered by <a href="scripts/build.py"><code>scripts/build.py</code></a> · font: VT323 (OFL)</sub></p>
