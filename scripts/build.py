@@ -29,7 +29,7 @@ EDGE = '#040a06'
 
 WIDTH = 900
 BEZEL = 28
-CHIN = 56
+CHIN = 80
 
 PERSONNEL = [
     ('ROLE', 'SOFTWARE DEVELOPER · WEB, MOBILE & AI'),
@@ -83,6 +83,11 @@ ICONS = {
         '.............',
     ],
 }
+
+
+# Turkey outline (lon, lat), Natural Earth via johan/world.geo.json — public domain.
+TURKEY = [[[36.91,41.34],[38.35,40.95],[39.51,41.1],[40.37,41.01],[41.55,41.54],[42.62,41.58],[43.58,41.09],[43.75,40.74],[43.66,40.25],[44.4,40.01],[44.79,39.71],[44.11,39.43],[44.42,38.28],[44.23,37.97],[44.77,37.17],[44.29,37.0],[43.94,37.26],[42.78,37.39],[42.35,37.23],[41.21,37.07],[40.67,37.09],[39.52,36.72],[38.7,36.71],[38.17,36.9],[37.07,36.62],[36.74,36.82],[36.69,36.26],[36.42,36.04],[36.15,35.82],[35.78,36.27],[36.16,36.65],[35.55,36.57],[34.71,36.8],[34.03,36.22],[32.51,36.11],[31.7,36.64],[30.62,36.68],[30.39,36.26],[29.7,36.14],[28.73,36.68],[27.64,36.66],[27.05,37.65],[26.32,38.21],[26.8,38.99],[26.17,39.46],[27.28,40.42],[28.82,40.46],[29.24,41.22],[31.15,41.09],[32.35,41.74],[33.51,42.02],[35.17,42.04],[36.91,41.34]],[[27.19,40.69],[26.36,40.15],[26.04,40.62],[26.06,40.82],[26.29,40.94],[26.6,41.56],[26.12,41.83],[27.14,42.14],[28.0,42.01],[28.12,41.62],[28.99,41.3],[28.81,41.05],[27.62,41.0],[27.19,40.69]]]
+ISTANBUL = (28.98, 41.01)
 
 
 def pixels(grid, x, y, px, fill=GREEN):
@@ -230,7 +235,7 @@ class Monitor:
     def chassis(self):
         """Screws, brand plate, vents, knobs and power LED of the terminal housing."""
         w, h = WIDTH, self.h
-        cy = h - CHIN / 2
+        cy = BEZEL + self.ih + 13 + (CHIN - 13) / 2
         parts = []
         for x, y in [(15, 15), (w - 15, 15), (15, h - 15), (w - 15, h - 15)]:
             parts.append(f'<circle cx="{x}" cy="{y}" r="5" fill="url(#stud)" stroke="#16170f"/>'
@@ -263,13 +268,20 @@ class Monitor:
   .inv {{ fill: {SCREEN}; }}
   .brand {{ font-size: 17px; fill: #9a9d8b; letter-spacing: 5px; }}
   .model {{ font-size: 12px; fill: #6f7264; letter-spacing: 2px; }}
+  .sweep {{ transform-origin: var(--o); animation: spin 4s linear infinite; }}
+  .ping {{ transform-box: fill-box; transform-origin: center; animation: ping 2s ease-out infinite; }}
+  .blink {{ animation: blink 1.2s step-end infinite; }}
+  .needle {{ transform-origin: var(--o); animation: swing 1.6s cubic-bezier(.3,1.4,.5,1) both; }}
+  @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
+  @keyframes ping {{ 0% {{ transform: scale(.4); opacity: .9; }} 100% {{ transform: scale(2.6); opacity: 0; }} }}
+  @keyframes swing {{ from {{ transform: rotate(var(--from)); }} to {{ transform: rotate(0deg); }} }}
   .screen {{ animation: flicker 6s infinite; }}
   .ty {{ animation-name: type; animation-fill-mode: both; }}
   .cursor {{ opacity: 0; animation: blink 1s step-end infinite; }}
   @keyframes type {{ from {{ clip-path: inset(-12px 100% -12px -4px); -webkit-clip-path: inset(-12px 100% -12px -4px); }} to {{ clip-path: inset(-12px -12px -12px -4px); -webkit-clip-path: inset(-12px -12px -12px -4px); }} }}
   @keyframes flicker {{ 0%, 100% {{ opacity: 1; }} 48% {{ opacity: .97; }} }}
   @keyframes blink {{ 0% {{ opacity: 1; }} 50% {{ opacity: 0; }} }}
-  @media (prefers-reduced-motion: reduce) {{ .screen, .cursor, .ty {{ animation: none; }} .cursor {{ opacity: 1; }} }}
+  @media (prefers-reduced-motion: reduce) {{ .screen, .cursor, .ty, .sweep, .ping, .needle, .blink {{ animation: none; }} .cursor {{ opacity: 1; }} }}
 </style>
 <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f5248"/><stop offset=".45" stop-color="#3a3c34"/><stop offset="1" stop-color="#26271f"/></linearGradient>
 <linearGradient id="recess" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0d0e0a"/><stop offset="1" stop-color="#6a6d5f"/></linearGradient>
@@ -388,6 +400,123 @@ def status(stats):
                     'Languages: ' + ', '.join(n for n, _ in stats['languages'][:5]) + '.')
 
 
+def inside(lon, lat, ring):
+    hit = False
+    for (x1, y1), (x2, y2) in zip(ring, ring[1:] + ring[:1]):
+        if (y1 > lat) != (y2 > lat) and lon < (x2 - x1) * (lat - y1) / (y2 - y1) + x1:
+            hit = not hit
+    return hit
+
+
+def radar():
+    """Dot-matrix map of Turkey with a blinking Istanbul marker, plus a mini radar."""
+    m = Monitor(360)
+    m.text(30, 44, '>RUN LOCATE/OPERATOR.EXE', cls='d')
+    lon0, lon1, lat0, lat1 = 25.5, 45.0, 35.7, 42.3
+    k = math.cos(math.radians(39))
+    step = 7
+    ox, oy = 34, 84
+    cols = 74
+    scale = cols * step / ((lon1 - lon0) * k)
+    rows = int((lat1 - lat0) * scale / step) + 1
+    grid = [[any(inside(lon0 + (c + .5) * step / scale / k, lat1 - (r + .5) * step / scale, ring) for ring in TURKEY)
+             for c in range(cols)] for r in range(rows)]
+    dots = []
+    for r, row in enumerate(grid):
+        for c, on in enumerate(row):
+            if not on:
+                dots.append(f'<rect x="{ox + c * step + 3}" y="{oy + r * step + 3}" width="1.5" height="1.5" fill="{DIM}" opacity=".35"/>')
+                continue
+            edge = any(not (0 <= r + dr < rows and 0 <= c + dc < cols and grid[r + dr][c + dc])
+                       for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+            dots.append(f'<rect x="{ox + c * step}" y="{oy + r * step}" width="{step - 2}" height="{step - 2}" '
+                        f'fill="{GREEN if edge else DIM}" opacity="{1 if edge else .55}"/>')
+    ix = ox + (ISTANBUL[0] - lon0) * k * scale
+    iy = oy + (lat1 - ISTANBUL[1]) * scale
+    m.typed(''.join(dots), 40, speed=0.02)
+    m.raw(f'<circle cx="{ix:.1f}" cy="{iy:.1f}" r="7" fill="none" stroke="{GREEN}" stroke-width="2" class="ping"/>'
+          f'<circle cx="{ix:.1f}" cy="{iy:.1f}" r="5" fill="{GREEN}" class="blink"/>'
+          f'<line x1="{ix:.1f}" y1="{iy:.1f}" x2="{ix + 36:.1f}" y2="{iy - 30:.1f}" stroke="{GREEN}"/>'
+          f'<text x="{ix + 40:.1f}" y="{iy - 32:.1f}" style="font-size:18px">ISTANBUL</text>')
+
+    x = ox + cols * step + 36
+    y = 196
+    for key, value in [('OPERATOR', 'ADIL EFE'), ('LOCATION', 'ISTANBUL, TR'), ('COORDS', '41.01°N 28.98°E'), ('TIMEZONE', 'UTC+3 (TRT)')]:
+        m.kv(x, y, key, value, width=8)
+        y += 30
+
+    cx, cy, r = x + 110, 112, 50
+    o = f'{cx}px {cy}px'
+    rings = ''.join(f'<circle cx="{cx}" cy="{cy}" r="{r * j / 2:.1f}" fill="none" stroke="{DIM}" stroke-opacity=".7"/>' for j in (1, 2))
+    wedge = (f'<path d="M{cx} {cy} L{cx + r} {cy} A{r} {r} 0 0 0 {cx + r * math.cos(math.radians(-45)):.1f} {cy + r * math.sin(math.radians(-45)):.1f} Z" '
+             f'fill="url(#sweep)"/><line x1="{cx}" y1="{cy}" x2="{cx + r}" y2="{cy}" stroke="{GREEN}" stroke-width="1.5"/>')
+    m.raw(f'<defs><linearGradient id="sweep" x1="1" y1="1" x2=".7" y2="0"><stop offset="0" stop-color="{GREEN}" stop-opacity=".5"/>'
+          f'<stop offset="1" stop-color="{GREEN}" stop-opacity="0"/></linearGradient></defs>'
+          f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{FAINT}" fill-opacity=".5" stroke="{GREEN}" stroke-opacity=".6"/>{rings}'
+          f'<line x1="{cx - r}" y1="{cy}" x2="{cx + r}" y2="{cy}" stroke="{DIM}" stroke-opacity=".5"/>'
+          f'<line x1="{cx}" y1="{cy - r}" x2="{cx}" y2="{cy + r}" stroke="{DIM}" stroke-opacity=".5"/>'
+          f'<g class="sweep" style="--o:{o}">{wedge}</g>'
+          f'<circle cx="{cx}" cy="{cy}" r="3.5" fill="{GREEN}" class="blink"/>')
+    m.text(30, 340, 'SIGNAL LOCKED. 1 OPERATOR FOUND.')
+    m.cursor(30 + 33 * m.cw, 340)
+    return m.render('Locate operator: map of Türkiye with Istanbul marked. Adil Efe, Istanbul (41.01°N 28.98°E), UTC+3.')
+
+
+def streaks(calendar):
+    days = [c for week in calendar for c in week]
+    last_year = days[-365:]
+    tail = days[:-1] if days and days[-1] == 0 else days
+    current = 0
+    for c in reversed(tail):
+        if not c:
+            break
+        current += 1
+    longest = run = 0
+    for c in days:
+        run = run + 1 if c else 0
+        longest = max(longest, run)
+    return current, longest, sum(1 for c in last_year if c)
+
+
+def gauges(stats):
+    m = Monitor(300)
+    m.text(30, 44, '>RUN DIAGNOSTICS/ACTIVITY.EXE', cls='d')
+    current, longest, active = streaks(stats['calendar'])
+    nice = lambda v: next(n for n in (7, 14, 30, 60, 90, 180, 365, 10 ** 6) if n >= v)
+    dials = [('CURRENT STREAK', current, nice(max(current, longest)), 'DAYS'),
+             ('LONGEST STREAK', longest, nice(longest), 'DAYS'),
+             ('ACTIVE DAYS / YR', active, 365, 'DAYS')]
+    third = m.iw / 3
+    r, cy = 78, 160
+    for i, (label, value, top, unit) in enumerate(dials):
+        cx = third * i + third / 2
+        arc = []
+        for k in range(11):
+            a = math.radians(-210 + k * 24)
+            inner = r - (12 if k % 5 == 0 else 7)
+            arc.append(f'<line x1="{cx + inner * math.cos(a):.1f}" y1="{cy + inner * math.sin(a):.1f}" '
+                       f'x2="{cx + r * math.cos(a):.1f}" y2="{cy + r * math.sin(a):.1f}" stroke="{GREEN if k % 5 == 0 else DIM}" stroke-width="{2 if k % 5 == 0 else 1.2}"/>')
+        red = math.radians(-210 + 240 * .8)
+        sx, sy = cx + r * math.cos(red), cy + r * math.sin(red)
+        ex, ey = cx + r * math.cos(math.radians(30)), cy + r * math.sin(math.radians(30))
+        band = f'<path d="M{sx:.1f} {sy:.1f} A{r} {r} 0 0 1 {ex:.1f} {ey:.1f}" fill="none" stroke="{GREEN}" stroke-opacity=".35" stroke-width="4"/>'
+        frac = min(value / top, 1) if top else 0
+        ang = -210 + 240 * frac
+        nx, ny = cx + (r - 16) * math.cos(math.radians(ang)), cy + (r - 16) * math.sin(math.radians(ang))
+        o = f'{cx:.1f}px {cy}px'
+        m.raw(f'<circle cx="{cx:.1f}" cy="{cy}" r="{r + 10}" fill="{FAINT}" fill-opacity=".35" stroke="{DIM}" stroke-opacity=".5"/>'
+              f'{"".join(arc)}{band}'
+              f'<text x="{cx - r + 4:.1f}" y="{cy + r - 4}" class="d" style="font-size:15px">0</text>'
+              f'<text x="{cx + r - 4 - len(str(top)) * 6:.1f}" y="{cy + r - 4}" class="d" style="font-size:15px">{top}</text>'
+              f'<g class="needle" style="--o:{o};--from:{-240 * frac:.1f}deg"><line x1="{cx:.1f}" y1="{cy}" x2="{nx:.1f}" y2="{ny:.1f}" stroke="{GREEN}" stroke-width="3" stroke-linecap="round"/></g>'
+              f'<circle cx="{cx:.1f}" cy="{cy}" r="7" fill="{GREEN}"/><circle cx="{cx:.1f}" cy="{cy}" r="3" fill="{SCREEN}"/>')
+        readout = f'{value:03d}'
+        m.inverse(cx - (len(readout) * m.cw + 16) / 2, cy + 52, readout)
+        m.text(cx - len(label) * m.cw / 2, cy + 118, label, cls='d')
+    return m.render(f'Activity diagnostics: current streak {current} days, longest streak {longest} days, '
+                    f'{active} active days in the last year.')
+
+
 def links():
     """One monitor with all links, cut into vertical slices so each slice can carry its own <a> in the README."""
     m = Monitor(200)
@@ -416,7 +545,8 @@ def main():
         raise SystemExit('GITHUB_TOKEN is required')
     stats = fetch_stats(token)
 
-    panels = {'boot': boot(), 'personnel': personnel(), 'status': status(stats), **links()}
+    panels = {'boot': boot(), 'personnel': personnel(), 'radar': radar(), 'status': status(stats),
+              'gauges': gauges(stats), **links()}
     for old in OUT.glob('*.svg'):
         old.unlink()
     for name, svg in panels.items():
