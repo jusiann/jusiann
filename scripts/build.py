@@ -28,8 +28,8 @@ SCREEN = '#0c1c13'
 EDGE = '#040a06'
 
 WIDTH = 900
-BEZEL = 18
-CHIN = 34
+BEZEL = 28
+CHIN = 56
 
 PERSONNEL = [
     ('ROLE', 'SOFTWARE DEVELOPER · WEB, MOBILE & AI'),
@@ -210,6 +210,13 @@ class Monitor:
         dots = f'{key} {"." * (width - len(key))} '
         self.typed(f'<text x="{x}" y="{y}"><tspan class="d">{escape(dots)}</tspan>{escape(value)}</text>', len(dots) + len(value))
 
+    def mark(self, caption, top=116, px=5):
+        """The triangle-ring logo on the right side of the screen, with a caption under it."""
+        x = self.iw - 70 - 31 * px
+        self.raw(f'<g class="ty" style="animation-delay:{self.t:.2f}s;animation-duration:.6s;animation-timing-function:steps(12)">'
+                 f'{pixels(logo(), x, top, px)}'
+                 f'<text x="{x + 31 * px / 2 - len(caption) / 2 * self.cw:.1f}" y="{top + 31 * px + 26}" class="d">{escape(caption)}</text></g>')
+
     def pause(self, s):
         self.t += s
 
@@ -220,6 +227,31 @@ class Monitor:
         self.raw(f'<rect x="{x:.1f}" y="{y - self.size * 0.72:.1f}" width="{self.cw:.1f}" height="{self.size * 0.8:.1f}" '
                  f'fill="{GREEN}" class="cursor" style="animation-delay:{self.t:.2f}s"/>')
 
+    def chassis(self):
+        """Screws, brand plate, vents, knobs and power LED of the terminal housing."""
+        w, h = WIDTH, self.h
+        cy = h - CHIN / 2
+        parts = []
+        for x, y in [(15, 15), (w - 15, 15), (15, h - 15), (w - 15, h - 15)]:
+            parts.append(f'<circle cx="{x}" cy="{y}" r="5" fill="url(#stud)" stroke="#16170f"/>'
+                         f'<line x1="{x - 3}" y1="{y + 2}" x2="{x + 3}" y2="{y - 2}" stroke="#1d1e18" stroke-width="1.4"/>')
+        px = BEZEL + 14
+        parts.append(f'<rect x="{px}" y="{cy - 17}" width="196" height="34" rx="3" fill="#1c1d17" stroke="#6f7264" stroke-opacity=".45"/>'
+                     f'<text x="{px + 12}" y="{cy - 1}" class="brand">JUSIANN</text>'
+                     f'<text x="{px + 12}" y="{cy + 12}" class="model">TERMLINK · MODEL JT-01</text>')
+        for i in range(18):
+            parts.append(f'<rect x="{w / 2 - 18 * 5 + i * 10 + 1}" y="{cy - 12}" width="4" height="24" rx="2" fill="#15160f" stroke="#000" stroke-opacity=".4"/>')
+        for i, kx in enumerate([w - BEZEL - 140, w - BEZEL - 100]):
+            ang = [-50, 35][i]
+            ex, ey = 9 * math.sin(math.radians(ang)), -9 * math.cos(math.radians(ang))
+            parts.append(f'<circle cx="{kx}" cy="{cy}" r="13" fill="url(#knob)" stroke="#0f100c"/>'
+                         f'<line x1="{kx}" y1="{cy}" x2="{kx + ex:.1f}" y2="{cy + ey:.1f}" stroke="#a4a795" stroke-width="2" stroke-linecap="round"/>')
+        lx = w - BEZEL - 52
+        parts.append(f'<circle cx="{lx}" cy="{cy - 5}" r="7" fill="{GREEN}" opacity=".3" filter="url(#soft)"/>'
+                     f'<circle cx="{lx}" cy="{cy - 5}" r="3.5" fill="{GREEN}" stroke="#0f100c"/>'
+                     f'<text x="{lx - 8}" y="{cy + 15}" class="model" style="font-size:11px">PWR</text>')
+        return ''.join(parts)
+
     def render(self, label):
         w, h, b, iw, ih = WIDTH, self.h, BEZEL, self.iw, self.ih
         return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}" role="img" aria-label="{escape(label)}">
@@ -229,7 +261,8 @@ class Monitor:
   text {{ font-family: 'VT', ui-monospace, Menlo, monospace; font-size: {self.size}px; fill: {GREEN}; white-space: pre; }}
   .d {{ fill: {DIM}; }}
   .inv {{ fill: {SCREEN}; }}
-  .brand {{ font-size: 15px; fill: #5d6158; letter-spacing: 4px; }}
+  .brand {{ font-size: 17px; fill: #9a9d8b; letter-spacing: 5px; }}
+  .model {{ font-size: 12px; fill: #6f7264; letter-spacing: 2px; }}
   .screen {{ animation: flicker 6s infinite; }}
   .ty {{ animation-name: type; animation-fill-mode: both; }}
   .cursor {{ opacity: 0; animation: blink 1s step-end infinite; }}
@@ -238,7 +271,11 @@ class Monitor:
   @keyframes blink {{ 0% {{ opacity: 1; }} 50% {{ opacity: 0; }} }}
   @media (prefers-reduced-motion: reduce) {{ .screen, .cursor, .ty {{ animation: none; }} .cursor {{ opacity: 1; }} }}
 </style>
-<linearGradient id="plastic" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3d36"/><stop offset="1" stop-color="#22241f"/></linearGradient>
+<linearGradient id="metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f5248"/><stop offset=".45" stop-color="#3a3c34"/><stop offset="1" stop-color="#26271f"/></linearGradient>
+<linearGradient id="recess" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0d0e0a"/><stop offset="1" stop-color="#6a6d5f"/></linearGradient>
+<radialGradient id="stud" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#9a9d8b"/><stop offset="1" stop-color="#2f3029"/></radialGradient>
+<radialGradient id="knob" cx="40%" cy="30%" r="80%"><stop offset="0" stop-color="#6f7264"/><stop offset=".7" stop-color="#2c2d26"/><stop offset="1" stop-color="#1a1b16"/></radialGradient>
+<filter id="blur8"><feGaussianBlur stdDeviation="8"/></filter>
 <radialGradient id="bg" cx="50%" cy="50%" r="75%"><stop offset="0" stop-color="{SCREEN}"/><stop offset="1" stop-color="{EDGE}"/></radialGradient>
 <radialGradient id="vig" cx="50%" cy="50%" r="70%"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".7"/></radialGradient>
 <linearGradient id="roll" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{GREEN}" stop-opacity="0"/><stop offset=".5" stop-color="{GREEN}" stop-opacity=".035"/><stop offset="1" stop-color="{GREEN}" stop-opacity="0"/></linearGradient>
@@ -249,9 +286,13 @@ class Monitor:
 <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
 <clipPath id="glass"><rect x="{b}" y="{b}" width="{iw}" height="{ih}" rx="26"/></clipPath>
 </defs>
-<rect width="{w}" height="{h}" rx="16" fill="url(#plastic)"/>
-<rect x="1" y="1" width="{w - 2}" height="{h - 2}" rx="15" fill="none" stroke="#50544b" stroke-opacity=".6"/>
-<rect x="{b - 5}" y="{b - 5}" width="{iw + 10}" height="{ih + 10}" rx="30" fill="#0b0c0a"/>
+<rect width="{w}" height="{h}" rx="14" fill="url(#metal)"/>
+<rect x="1.5" y="1.5" width="{w - 3}" height="{h - 3}" rx="13" fill="none" stroke="#777a6a" stroke-opacity=".5"/>
+<rect x="5" y="5" width="{w - 10}" height="{h - 10}" rx="10" fill="none" stroke="#000" stroke-opacity=".3"/>
+<rect x="{b - 13}" y="{b - 13}" width="{iw + 26}" height="{ih + 26}" rx="38" fill="#1f201a"/>
+<rect x="{b - 13}" y="{b - 13}" width="{iw + 26}" height="{ih + 26}" rx="38" fill="none" stroke="url(#recess)" stroke-width="2"/>
+<rect x="{b - 5}" y="{b - 5}" width="{iw + 10}" height="{ih + 10}" rx="31" fill="#060705"/>
+{self.chassis()}
 <g clip-path="url(#glass)">
 <rect x="{b}" y="{b}" width="{iw}" height="{ih}" fill="url(#bg)"/>
 <g transform="translate({b} {b})"><g class="screen" filter="url(#glow)">
@@ -262,10 +303,9 @@ class Monitor:
 <rect x="{b}" y="{b}" width="{iw}" height="{ih}" filter="url(#grain)" opacity=".05"/>
 <rect x="{b}" y="{b}" width="{iw}" height="{ih}" fill="url(#vig)"/>
 <rect x="{b}" y="{b}" width="{iw}" height="{ih}" fill="url(#glare)"/>
+<ellipse cx="{b + iw * .3:.0f}" cy="{b + 6}" rx="{iw * .38:.0f}" ry="{ih * .2:.0f}" fill="#fff" opacity=".025"/>
+<rect x="{b}" y="{b}" width="{iw}" height="{ih}" rx="26" fill="none" stroke="#000" stroke-width="26" opacity=".6" filter="url(#blur8)"/>
 </g>
-<text x="{b + 8}" y="{h - CHIN / 2 + 5}" class="brand">JUSIANN</text>
-<circle cx="{w - b - 12}" cy="{h - CHIN / 2}" r="6" fill="{GREEN}" opacity=".25" filter="url(#soft)"/>
-<circle cx="{w - b - 12}" cy="{h - CHIN / 2}" r="3" fill="{GREEN}"/>
 </svg>
 '''
 
@@ -283,11 +323,7 @@ def boot():
     m.text(30, 222, 'ACCESS GRANTED.')
     m.pause(0.2)
     m.text(30, 276, 'WELCOME TO THE VAULT OF ADIL EFE', size=34)
-    mark_px = 5
-    mark_x = m.iw - 70 - 31 * mark_px
-    m.raw(f'<g class="ty" style="animation-delay:{m.t:.2f}s;animation-duration:.6s;animation-timing-function:steps(12)">'
-          f'{pixels(logo(), mark_x, 116, mark_px)}'
-          f'<text x="{mark_x + 31 * mark_px / 2 - 4 * m.cw:.1f}" y="296" class="d">VAULT 01</text></g>')
+    m.mark('VAULT 01')
     subtitle = 'SOFTWARE DEVELOPER // WEB, MOBILE & AI'
     m.text(30, 306, subtitle, cls='d')
     m.cursor(30 + (len(subtitle) + 1) * m.cw, 306)
@@ -297,17 +333,13 @@ def boot():
 
 def personnel():
     m = Monitor(290)
-    px = 3
-    ox, oy = m.iw - 40 - 31 * px, 36
-    m.raw(f'<g opacity=".85">{pixels(logo(), ox, oy, px)}</g>'
-          f'<rect x="{ox - 16}" y="{oy - 16}" width="{31 * px + 32}" height="{31 * px + 58}" fill="none" stroke="{DIM}" stroke-dasharray="4 4"/>'
-          f'<text x="{ox + 31 * px / 2 - 3.5 * 7.2:.1f}" y="{oy + 31 * px + 30}" class="d" style="font-size:18px">ID #0001</text>')
     m.text(30, 44, '>RUN PERSONNEL/ADIL_EFE.F', cls='d')
     m.inverse(30, 84, 'ADIL EFE')
     y = 124
     for key, value in PERSONNEL:
         m.kv(30, y, key, value, width=10)
         y += 28
+    m.mark('ID #0001', top=36)
     m.text(30, y + 14, f'>DIRECTIVE: {DIRECTIVE}')
     m.cursor(30 + (len(DIRECTIVE) + 13) * m.cw, y + 14)
     return m.render('Personnel file — Adil Efe. ' + '; '.join(f'{k.lower()}: {v}' for k, v in PERSONNEL)
@@ -325,8 +357,8 @@ def status(stats):
         y += 28
 
     total = sum(size for _, size in stats['languages']) or 1
-    lx = 450
-    segs, seg_w, gap = 20, 10, 3
+    lx = 410
+    segs, seg_w, gap = 18, 10, 3
     y = 88
     for name, size in stats['languages'][:5]:
         pct = size / total * 100
@@ -341,7 +373,7 @@ def status(stats):
 
     weeks = stats['calendar'][-53:]
     shades = [FAINT, '#24593a', DIM, GREEN]
-    cell, gap = 12, 3
+    cell, gap = 11, 3
     hx = (m.iw - len(weeks) * (cell + gap) + gap) / 2
     hy = 268
     m.text(30, hy - 22, f'>ACTIVITY.LOG  {stats["contributions"]:,} CONTRIBUTIONS / LAST 12 MONTHS', cls='d')
